@@ -1,0 +1,76 @@
+# Ingress — routes traffic to queue-engine, with TLS via cert-manager.
+# Requires cert-manager + an ACME issuer (Let's Encrypt or ZeroSSL).
+#
+# Install cert-manager:
+#   helm install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set installCRDs=true
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@example.com # change this
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: surge-ingress
+  namespace: surge-system
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    # Rate limiting at the ingress level as a first line of defense
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "200"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - surge.example.com # change to your domain
+      secretName: surge-tls
+  rules:
+    - host: surge.example.com
+      http:
+        paths:
+          # Queue API → queue-engine
+          - path: /api/queue
+            pathType: Prefix
+            backend:
+              service:
+                name: queue-engine
+                port:
+                  number: 80
+          # Registration API → backend
+          - path: /api/register
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 80
+          - path: /api/stats
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 80
+          - path: /api/health
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 80

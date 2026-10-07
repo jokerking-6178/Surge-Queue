@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: surge-system
+  labels:
+    name: surge-system
+    istio-injection: disabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: surge-monitoring
+  labels:
+    name: surge-monitoring

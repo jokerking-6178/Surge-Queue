@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: surge-backend
+
+server:
+  port: 8081
+
+# Queue admit-token validation settings
+surge:
+  queue:
+    # Same secret used by the queue engine to sign JWTs.
+    # In production this comes from K8s secrets / OCI Vault.
+    jwt-secret: ${JWT_SECRET:dev-secret-change-me}
+    # If true, all requests must carry a valid admit token.
+    # Set to false for the "without queue" demo mode.
+    enforce-queue-token: ${ENFORCE_QUEUE_TOKEN:true}
+    # Paths that skip token validation (health, actuator, etc.)
+    public-paths: /actuator,/healthz,/readyz
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: surge-backend
+  endpoint:
+    health:
+      probes:
+        enabled: true

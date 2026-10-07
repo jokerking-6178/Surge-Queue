@@ -1,0 +1,28 @@
+# Kustomize — apply all base manifests in order.
+# Usage:
+#   kubectl apply -k deploy/base/
+# or with a specific environment overlay:
+#   kubectl apply -k deploy/overlays/prod/
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: surge-system
+
+resources:
+  - namespace.yaml
+  - secret-externalsecret.yaml
+  - redis.yaml
+  - queue-engine.yaml
+  - backend.yaml
+  - networkpolicy.yaml
+  - ingress.yaml
+
+# Override image names when deploying to OCI
+# images:
+#   - name: surge/queue-engine
+#     newName: ap-mumbai-1.ocir.io/mytenancy/surge/queue-engine
+#     newTag: latest
+#   - name: surge/backend
+#     newName: ap-mumbai-1.ocir.io/mytenancy/surge/backend
+#     newTag: latest

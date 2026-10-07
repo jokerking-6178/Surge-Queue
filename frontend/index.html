@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Surge Queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<main class="board">
+
+  <header class="board__brand">
+    <span class="board__mark" aria-hidden="true">&#9670;</span>
+    <h1>Surge Queue</h1>
+  </header>
+
+  <!-- LANDING -->
+  <section id="panel-landing" class="panel">
+    <p class="board__lede">You're about to join a live queue. We'll hold your place and let you through the moment there's room.</p>
+
+    <label class="field">
+      <span class="field__label">Your name</span>
+      <input id="input-name" type="text" placeholder="Jordan Lee" autocomplete="name" />
+    </label>
+
+    <label class="field">
+      <span class="field__label">Email</span>
+      <input id="input-email" type="email" placeholder="jordan@example.com" autocomplete="email" />
+    </label>
+
+    <button id="btn-join" class="btn btn--primary" type="button">Join the queue</button>
+    <p id="landing-error" class="field-error" role="alert" hidden></p>
+  </section>
+
+  <!-- WAITING -->
+  <section id="panel-waiting" class="panel" hidden>
+    <div class="board__row board__row--feature">
+      <span class="row-label">Position</span>
+      <span id="stat-position" class="row-value row-value--big">&mdash;</span>
+    </div>
+    <div class="board__row">
+      <span class="row-label">People ahead of you</span>
+      <span id="stat-ahead" class="row-value">&mdash;</span>
+    </div>
+    <div class="board__row">
+      <span class="row-label">Estimated wait</span>
+      <span id="stat-eta" class="row-value">&mdash;</span>
+    </div>
+    <div class="board__row">
+      <span class="row-label">Status</span>
+      <span id="stat-state" class="row-value row-value--status">Waiting</span>
+    </div>
+    <p class="board__hint">Keep this tab open. Your place is saved automatically &mdash; no need to refresh.</p>
+  </section>
+
+  <!-- ADMITTED / REGISTRATION -->
+  <section id="panel-admitted" class="panel" hidden>
+    <p class="board__lede board__lede--go">You're through. Complete registration below to finish.</p>
+
+    <label class="field">
+      <span class="field__label">Full name</span>
+      <input id="reg-name" type="text" autocomplete="name" />
+    </label>
+
+    <label class="field">
+      <span class="field__label">Email</span>
+      <input id="reg-email" type="email" autocomplete="email" />
+    </label>
+
+    <label class="field">
+      <span class="field__label">Details <em>(optional)</em></span>
+      <textarea id="reg-details" rows="2" placeholder="Anything we should know"></textarea>
+    </label>
+
+    <button id="btn-register" class="btn btn--primary" type="button">Complete registration</button>
+    <p id="admitted-error" class="field-error" role="alert" hidden></p>
+  </section>
+
+  <!-- DONE -->
+  <section id="panel-done" class="panel" hidden>
+    <div class="ticket">
+      <p class="ticket__status">Registration confirmed</p>
+      <p id="ticket-id" class="ticket__id">&mdash;</p>
+      <p class="ticket__note">Save this confirmation number for your records.</p>
+    </div>
+  </section>
+
+  <ol class="tracker" id="tracker" aria-label="Queue progress">
+    <li data-state="waiting" class="tracker__step">In queue</li>
+    <li data-state="admitted" class="tracker__step">Admitted</li>
+    <li data-state="done" class="tracker__step">Registered</li>
+  </ol>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

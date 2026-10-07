@@ -1,0 +1,125 @@
+# Queue Engine — Go deployment, service, and HPA
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: queue-engine
+  namespace: surge-system
+  labels:
+    app: queue-engine
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: queue-engine
+  template:
+    metadata:
+      labels:
+        app: queue-engine
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: queue-engine
+          # Replace with your OCR repo: <region>.ocir.io/<tenancy-namespace>/surge/queue-engine:latest
+          image: surge/queue-engine:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: HTTP_PORT
+              value: "8080"
+            - name: REDIS_ADDR
+              value: "redis:6379" # or OCI Cache endpoint in prod
+            - name: ADMIT_RATE_PER_SEC
+              value: "25"
+            - name: MAX_CONCURRENT_ADMITTED
+              value: "200"
+            - name: ADMITTED_SESSION_TTL
+              value: "300"
+            - name: WAITING_TTL
+              value: "600"
+            - name: JWT_TTL
+              value: "600"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: JWT_SECRET
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: queue-engine
+  namespace: surge-system
+spec:
+  selector:
+    app: queue-engine
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
+---
+# HPA — scales queue-engine pods based on CPU and queue depth
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: queue-engine-hpa
+  namespace: surge-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: queue-engine
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    # Custom metric: queue depth — scales when the queue grows
+    - type: Pods
+      pods:
+        metric:
+          name: surge_queue_depth
+        target:
+          type: AverageValue
+          averageValue: "500"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60

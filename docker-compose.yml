@@ -1,0 +1,69 @@
+# docker-compose.yml — local development & demo environment.
+# Brings up Redis, queue-engine, and backend with one command.
+# No cloud account needed — perfect for the demo.
+#
+# Usage:
+#   docker compose up --build
+#   # then in another terminal:
+#   cd loadtest && go run . --mode=with-queue --users=1000 --ramp=3s
+#   cd loadtest && go run . --mode=without-queue --users=1000 --ramp=3s
+#
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  queue-engine:
+    build: ./queue-engine
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_ADDR=redis:6379
+      - ADMIT_RATE_PER_SEC=25
+      - MAX_CONCURRENT_ADMITTED=200
+      - JWT_SECRET=${JWT_SECRET}
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    ports:
+      - "8081:8081"
+    depends_on:
+      queue-engine:
+        condition: service_started
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - ENFORCE_QUEUE_TOKEN=true
+    restart: unless-stopped
+
+  # Optional: backend in "no queue" mode for the comparison demo.
+  # Runs on port 8082 with queue enforcement disabled.
+  backend-no-queue:
+    build: ./backend
+    ports:
+      - "8082:8081"
+    environment:
+      - JWT_SECRET=dev-secret-change-me
+      - ENFORCE_QUEUE_TOKEN=false
+    restart: unless-stopped
+    profiles:
+      - demo
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - queue-engine
+      - backend
+    restart: unless-stopped

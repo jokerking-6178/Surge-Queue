@@ -1,0 +1,24 @@
+# Dev environment values — copy to terraform.tfvars and fill in your OCIDs.
+# Do NOT commit real credentials.
+
+region           = "ap-mumbai-1"
+compartment_ocid = "ocid1.compartment.oc1..aaaa..."
+
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaa..."
+user_ocid        = "ocid1.user.oc1..aaaa..."
+fingerprint      = "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
+private_key_path = "~/.oci/oci_api_key.pem"
+
+cluster_name      = "surge-queue-dev"
+k8s_version       = "v1.29.1"
+node_pool_size     = "VM.Standard3.Flex"
+node_pool_ocpus   = 2
+node_pool_memory_gb = 16
+node_pool_min_nodes = 3
+node_pool_max_nodes = 10
+
+redis_name         = "surge-redis-dev"
+redis_capacity_gbps = 1
+
+environment = "dev"
+project    = "surge-queue"

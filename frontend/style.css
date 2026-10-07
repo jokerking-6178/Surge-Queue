@@ -1,0 +1,268 @@
+/* ---------------------------------------------------
+   Surge Queue — departure-board visual system
+   Type roles: IBM Plex Mono (data/numbers), IBM Plex Sans (labels/body)
+--------------------------------------------------- */
+
+:root {
+  --bg-deep: #0b0f14;
+  --bg-panel: #121821;
+  --bg-panel-raised: #161d28;
+  --hairline: #22303f;
+  --amber: #ffb020;
+  --amber-dim: #c98a1a;
+  --text-primary: #e7ecf2;
+  --text-muted: #7c8798;
+  --green: #35d07f;
+  --red: #ff6b6b;
+
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.board {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---- Brand ---- */
+.board__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.board__mark {
+  color: var(--amber);
+  font-size: 18px;
+  line-height: 1;
+}
+.board__brand h1 {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+/* ---- Panel shell ---- */
+.panel[hidden] {
+  display: none;
+}
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.board__lede {
+  margin: 0 0 4px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.board__lede--go {
+  color: var(--green);
+}
+
+.board__hint {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ---- Board rows (departure-board data lines) ---- */
+.board__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+}
+.board__row:last-of-type { border-bottom: none; }
+
+.row-label {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+.row-value {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.row-value--big {
+  font-size: 40px;
+  font-weight: 600;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+  transition: opacity 0.15s ease;
+}
+.row-value--status {
+  color: var(--amber);
+  text-transform: lowercase;
+}
+.row-value--status::first-letter {
+  text-transform: uppercase;
+}
+.row-label--optional,
+.field__label em {
+  font-style: normal;
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+.board__row--feature {
+  padding-top: 4px;
+  padding-bottom: 16px;
+}
+
+/* ---- Form fields ---- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field__label {
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+input, textarea {
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  color: var(--text-primary);
+  resize: vertical;
+}
+input::placeholder, textarea::placeholder {
+  color: #4d5866;
+}
+input:focus, textarea:focus {
+  outline: 2px solid var(--amber);
+  outline-offset: 1px;
+  border-color: var(--amber);
+}
+
+/* ---- Buttons ---- */
+.btn {
+  appearance: none;
+  border: none;
+  border-radius: 4px;
+  padding: 12px 18px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.05s ease;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+.btn--primary {
+  background: var(--amber);
+  color: #1a1305;
+}
+.btn--primary:hover { background: #ffc04d; }
+.btn--primary:active { transform: scale(0.99); }
+.btn--primary:disabled {
+  background: var(--amber-dim);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.field-error {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--red);
+}
+
+/* ---- Ticket (done state) ---- */
+.ticket {
+  text-align: left;
+  border-top: 2px dashed var(--hairline);
+  padding-top: 18px;
+}
+.ticket__status {
+  margin: 0 0 10px;
+  color: var(--green);
+  font-size: 15px;
+}
+.ticket__id {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--amber);
+  margin: 0 0 8px;
+  word-break: break-all;
+}
+.ticket__note {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+/* ---- Progress tracker ---- */
+.tracker {
+  list-style: none;
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.tracker__step {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border: 1px solid var(--hairline);
+}
+.tracker__step.is-active {
+  color: var(--amber);
+  border-color: var(--amber-dim);
+}
+.tracker__step.is-done {
+  color: var(--green);
+  border-color: var(--green);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+@media (max-width: 420px) {
+  .row-value--big { font-size: 32px; }
+  .panel { padding: 22px 18px; }
+}

@@ -7,8 +7,8 @@
 // Update these two lines when you deploy — everything else in this
 // file works unchanged against localhost or a real domain.
 // ---------------------------------------------------------------
-const QUEUE_BASE = 'http://localhost:8080';
-const BACKEND_BASE = 'http://localhost:8081';
+const QUEUE_BASE = '';
+const BACKEND_BASE = '';
 
 const POLL_INTERVAL_MS = 1500;
 const HEARTBEAT_EVERY_N_POLLS = 4; // heartbeat roughly every ~6s
@@ -117,7 +117,7 @@ btnJoin.addEventListener('click', async () => {
   btnJoin.textContent = 'Joining\u2026';
 
   try {
-    const result = await postJSON(`${QUEUE_BASE}/api/queue/enter`, {});
+    const result = await postJSON(`/api/queue/enter`, {});
     userId = result.user_id;
     sessionStorage.setItem('surgeQueueUserId', userId);
 
@@ -157,11 +157,11 @@ function startPolling() {
     if (!userId) return;
     pollCount += 1;
     try {
-      const status = await getJSON(`${QUEUE_BASE}/api/queue/status/${userId}`);
+      const status = await getJSON(`/api/queue/status/${userId}`);
       applyStatus(status);
 
       if (pollCount % HEARTBEAT_EVERY_N_POLLS === 0 && status.state === 'waiting') {
-        postJSON(`${QUEUE_BASE}/api/queue/heartbeat/${userId}`, {}).catch(() => {});
+        postJSON(`/api/queue/heartbeat/${userId}`, {}).catch(() => {});
       }
     } catch (err) {
       // transient network hiccups shouldn't stop the poll loop
@@ -230,7 +230,7 @@ btnRegister.addEventListener('click', async () => {
   showPanel('landing');
   if (userId) {
     try {
-      const status = await getJSON(`${QUEUE_BASE}/api/queue/status/${userId}`);
+      const status = await getJSON(`/api/queue/status/${userId}`);
       showPanel('waiting');
       applyStatus(status);
       if (status.state === 'waiting') startPolling();

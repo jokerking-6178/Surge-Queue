@@ -79,6 +79,36 @@ chmod +x scripts/demo.sh
 ./scripts/demo.sh
 ```
 
+## Run in GitHub Codespaces
+
+The easiest way to run this project is with GitHub Codespaces — no local setup required.
+
+1. Click the "Code" button on this repository
+2. Select "Codespaces" → "Create codespace on main"
+3. Wait for the codespace to start (1-2 minutes)
+4. Once ready, run:
+
+```bash
+# Build images and deploy to k3d cluster
+chmod +x scripts/k3d-up.sh
+./scripts/k3d-up.sh
+```
+
+5. Open the preview URL shown (or http://localhost:3000)
+
+**To clean up:**
+```bash
+chmod +x scripts/k3d-down.sh
+./scripts/k3d-down.sh
+```
+
+The Codespace comes pre-configured with:
+- Docker and k3d (lightweight Kubernetes)
+- kubectl for cluster management
+- Go 1.22 for building
+- Terraform for infrastructure
+- Auto-generated .env with random JWT_SECRET
+
 The demo script runs two tests back-to-back:
 
 **Test 1 — Without queue (chaos):** 500 users slam the backend directly. You'll see 5xx errors and failures — the backend can't handle the burst.

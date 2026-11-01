@@ -1,3 +1,4 @@
 FROM nginx:1.27-alpine
 COPY index.html style.css app.js /usr/share/nginx/html/
+COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 80

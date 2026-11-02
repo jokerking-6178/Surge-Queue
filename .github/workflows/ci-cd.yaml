@@ -51,7 +51,8 @@ jobs:
       - name: Create JWT secret
         run: |
           kubectl create namespace surge-system || true
-          kubectl create secret generic jwt-secret -n surge-system --from-literal=JWT_SECRET="test-secret-for-ci" --dry-run=client -o yaml | kubectl apply -f -
+          JWT_SECRET=$(openssl rand -hex 32)
+          kubectl create secret generic jwt-secret -n surge-system --from-literal=JWT_SECRET="$JWT_SECRET" --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply Kubernetes manifests
         run: |
@@ -73,13 +74,13 @@ jobs:
 
       - name: Test queue-engine health
         run: |
-          kubectl run curl-test --image=curlimages/curl:latest --rm -i --restart=Never -- \
-            curl -f http://queue-engine:80/healthz -n surge-system
+          kubectl run curl-test -n surge-system --image=curlimages/curl:latest --rm -i --restart=Never -- \
+            curl -f http://queue-engine:80/healthz
 
       - name: Test backend health
         run: |
-          kubectl run curl-test --image=curlimages/curl:latest --rm -i --restart=Never -- \
-            curl -f http://backend:80/actuator/health -n surge-system
+          kubectl run curl-test -n surge-system --image=curlimages/curl:latest --rm -i --restart=Never -- \
+            curl -f http://backend:80/actuator/health
 
       - name: Debug on failure
         if: failure()

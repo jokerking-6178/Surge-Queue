@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Change to script directory
+cd "$(dirname "$0")/.."
+
 echo "=== Building Docker images ==="
 docker build -t queue-engine:local ./queue-engine
 docker build -t backend:local ./backend

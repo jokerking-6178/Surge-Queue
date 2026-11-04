@@ -102,6 +102,19 @@ chmod +x scripts/k3d-down.sh
 ./scripts/k3d-down.sh
 ```
 
+## Demo Day Checklist
+
+When doing a live demo with GitHub Codespaces:
+
+1. **Resume the codespace** — If your codespace was stopped, click it in GitHub to resume
+2. **Deploy** — Run `bash scripts/k3d-up.sh` (script handles stopped clusters gracefully)
+3. **Monitor logs** — In a second terminal: `kubectl logs -f -n surge-system deployment/backend`
+4. **Open the app** — Click "Open in Browser" for port 3000, or go to http://localhost:3000
+5. **Make it public** — In Codespaces, click "Ports" → port 3000 → "Make Public" to share with audience
+6. **After demo** — Stop the codespace in GitHub to save your free hours
+
+**Tip:** If you've made code changes, run `bash scripts/k3d-up.sh --rebuild` to rebuild images.
+
 The Codespace comes pre-configured with:
 - Docker and k3d (lightweight Kubernetes)
 - kubectl for cluster management

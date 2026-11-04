@@ -4,18 +4,39 @@ set -e
 # Change to script directory
 cd "$(dirname "$0")/.."
 
-echo "=== Building Docker images ==="
-docker build -t queue-engine:local ./queue-engine
-docker build -t backend:local ./backend
-docker build -t frontend:local ./frontend
+REBUILD=false
+if [ "$1" = "--rebuild" ]; then
+  REBUILD=true
+fi
 
-echo "=== Creating k3d cluster ==="
-k3d cluster create surge-queue --port "8080:80@loadbalancer" --port "8081:80@loadbalancer" --port "3000:80@loadbalancer" --agents 0 || echo "Cluster may already exist"
+echo "=== Checking k3d cluster ==="
+if k3d cluster get surge-queue &>/dev/null; then
+  echo "Cluster 'surge-queue' exists"
+  if k3d cluster list | grep -q "surge-queue.*running"; then
+    echo "Cluster is running"
+  else
+    echo "Starting stopped cluster..."
+    k3d cluster start surge-queue
+  fi
+else
+  echo "Creating new cluster..."
+  k3d cluster create surge-queue --port "8080:80@loadbalancer" --port "8081:80@loadbalancer" --port "3000:80@loadbalancer" --agents 0
+fi
 
-echo "=== Loading images into cluster ==="
-k3d image import queue-engine:local -c surge-queue
-k3d image import backend:local -c surge-queue
-k3d image import frontend:local -c surge-queue
+# Build images if --rebuild or if they don't exist
+if [ "$REBUILD" = true ] || ! docker image inspect queue-engine:local &>/dev/null; then
+  echo "=== Building Docker images ==="
+  docker build -t queue-engine:local ./queue-engine
+  docker build -t backend:local ./backend
+  docker build -t frontend:local ./frontend
+
+  echo "=== Loading images into cluster ==="
+  k3d image import queue-engine:local -c surge-queue
+  k3d image import backend:local -c surge-queue
+  k3d image import frontend:local -c surge-queue
+else
+  echo "=== Docker images already exist (use --rebuild to rebuild) ==="
+fi
 
 echo "=== Creating JWT secret ==="
 if [ -z "$JWT_SECRET" ]; then

@@ -8,8 +8,8 @@ Built the way real companies (Ticketmaster, SeatGeek, IRCTC) run dedicated queue
 
 ```
                     ┌─────────────┐
-   Users ──────────►│   Ingress   │  (TLS, rate-limit, nginx)
-                    │  (OCI LB)   │
+   Users ──────────►│   Nginx    │  (Frontend proxy)
+                    │  (LoadBalancer)│
                     └──────┬──────┘
                            │
               ┌────────────┼────────────┐
@@ -17,22 +17,31 @@ Built the way real companies (Ticketmaster, SeatGeek, IRCTC) run dedicated queue
     ┌──────────────────┐      ┌──────────────────┐
     │  Queue Engine    │      │     Backend      │
     │     (Go)         │      │  (Spring Boot)   │
-    │                  │      │                  │
+    │                  │      │                  |
     │ • Enter queue    │      │ • /api/register   │
     │ • Check position │      │ • JWT validation  │
     │ • Heartbeat      │      │ • Registration    │
     │ • Admit (JWT)    │      │   logic           │
-    │                  │      │                  │
-    │ HPA: 2→8 pods   │      │ HPA: 3→10 pods   │
+    │                  │      │                  |
     └────────┬─────────┘      └──────────────────┘
              │
              ▼
     ┌──────────────┐
-    │    Redis     │  (OCI Cache / managed)
+    │    Redis     │  (State store)
     │  (backing    │
     │   store)     │
     └──────────────┘
 ```
+
+**Current deployment (GitHub Codespaces):**
+- Kubernetes (k3d) running locally in the codespace
+- All services (queue-engine, backend, frontend, Redis) as pods
+- Single LoadBalancer service exposing the frontend
+
+**Infrastructure for production (planned):**
+- Terraform provisions the Oracle Cloud network (VCN, subnets, gateways)
+- Oracle VM (not yet created - free Arm capacity unavailable)
+- Optional: OKE cluster, OCI Cache, and OCI Vault for production-grade setup
 
 ### How it works
 
@@ -42,7 +51,7 @@ Built the way real companies (Ticketmaster, SeatGeek, IRCTC) run dedicated queue
 
 3. **Admitter goroutine** runs in the background, admitting users at a configurable rate (`ADMIT_RATE_PER_SEC`, default 25/sec) up to `MAX_CONCURRENT_ADMITTED` (default 200). When a user is admitted, they're removed from the queue and issued a **signed JWT admit token**.
 
-4. **User hits the backend** — `POST /api/register` with the `Authorization: Bearer <admit-token>` header. The backend's `QueueTokenFilter` validates the JWT (same secret, injected via K8s secrets / OCI Vault). No token = 401.
+4. **User hits the backend** — `POST /api/register` with the `Authorization: Bearer <admit-token>` header. The backend's `QueueTokenFilter` validates the JWT (same secret, injected via K8s secrets). No token = 401.
 
 5. **Session expiry** — admitted sessions auto-expire after `ADMITTED_SESSION_TTL` (default 300s), freeing slots for the next users in line.
 
@@ -50,17 +59,14 @@ Built the way real companies (Ticketmaster, SeatGeek, IRCTC) run dedicated queue
 
 ## Tech Stack
 
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| Queue Engine | Go 1.22, chi, go-redis | Handles thousands of status checks concurrently |
-| Backend | Java 21, Spring Boot 3.2 | Registration/booking logic |
-| Backing Store | Redis 7 (OCI Cache) | Sorted-set queue + session tracking |
-| Infrastructure | Terraform, OCI (OKE) | VCN, OKE cluster, OCI Cache, Container Registry, KMS Vault |
-| Orchestration | Kubernetes, Docker | Deployments, HPA, NetworkPolicy, Ingress |
-| Monitoring | Prometheus, Grafana | Queue depth, admission rate, latency dashboards |
-| TLS | cert-manager, Let's Encrypt | Automatic HTTPS |
-| Secrets | OCI Vault + ExternalSecrets | JWT secret synced into K8s Secret |
-| CI/CD | GitHub Actions | Build, push, terraform, deploy |
+|| Component | Technology | Purpose |
+||-----------|-----------|---------|
+|| Queue Engine | Go 1.22, chi, go-redis | Handles thousands of status checks concurrently |
+|| Backend | Java 21, Spring Boot 3.2 | Registration/booking logic |
+|| Backing Store | Redis 7 | Sorted-set queue + session tracking |
+|| Infrastructure | Terraform, OCI | VCN, subnets, gateways (network provisioned) |
+|| Orchestration | Kubernetes, k3d | Deployments (GitHub Codespaces) |
+|| CI/CD | GitHub Actions | Build and test with kind cluster |
 
 ## Quick Start (Local Demo)
 
@@ -108,10 +114,11 @@ When doing a live demo with GitHub Codespaces:
 
 1. **Resume the codespace** — If your codespace was stopped, click it in GitHub to resume
 2. **Deploy** — Run `bash scripts/k3d-up.sh` (script handles stopped clusters gracefully)
-3. **Monitor logs** — In a second terminal: `kubectl logs -f -n surge-system deployment/backend`
-4. **Open the app** — Click "Open in Browser" for port 3000, or go to http://localhost:3000
-5. **Make it public** — In Codespaces, click "Ports" → port 3000 → "Make Public" to share with audience
-6. **After demo** — Stop the codespace in GitHub to save your free hours
+3. **Smoke test** — Run `bash scripts/smoke-test.sh` to verify the queue flow works
+4. **Monitor logs** — In a second terminal: `kubectl logs -f -n surge-system deployment/backend`
+5. **Open the app** — Click "Open in Browser" for port 3000, or go to http://localhost:3000
+6. **Make it public** — In Codespaces, click "Ports" → port 3000 → "Make Public" to share with audience
+7. **After demo** — Stop the codespace in GitHub to save your free hours
 
 **Tip:** If you've made code changes, run `bash scripts/k3d-up.sh --rebuild` to rebuild images.
 
@@ -171,14 +178,14 @@ go run . --mode=without-queue --users=2000 --ramp=3s \
 
 ### Queue Engine (port 8080)
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/queue/enter` | POST | Enter the queue. Body: `{"user_id":"optional"}` |
-| `/api/queue/status/{userId}` | GET | Get position, ETA, and admit token (if admitted) |
-| `/api/queue/heartbeat/{userId}` | POST | Refresh waiting TTL |
-| `/healthz` | GET | Liveness probe |
-| `/readyz` | GET | Readiness probe |
-| `/metrics` | GET | Prometheus metrics |
+|| Endpoint | Method | Description |
+||----------|--------|-------------|
+|| `/api/queue/enter` | POST | Enter the queue. Body: `{"user_id":"optional"}` |
+|| `/api/queue/status/{userId}` | GET | Get position, ETA, and admit token (if admitted) |
+|| `/api/queue/heartbeat/{userId}` | POST | Refresh waiting TTL |
+|| `/healthz` | GET | Liveness probe |
+|| `/readyz` | GET | Readiness probe |
+|| `/metrics` | GET | Prometheus metrics |
 
 **Response (waiting):**
 ```json
@@ -207,35 +214,35 @@ go run . --mode=without-queue --users=2000 --ramp=3s \
 
 ### Backend (port 8081)
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/register` | POST | Submit registration (requires admit token) |
-| `/api/stats` | GET | Get total registration count |
-| `/api/health` | GET | Health check |
-| `/actuator/health` | GET | Spring Boot health |
-| `/actuator/prometheus` | GET | Prometheus metrics |
+|| Endpoint | Method | Description |
+||----------|--------|-------------|
+|| `/api/register` | POST | Submit registration (requires admit token) |
+|| `/api/stats` | GET | Get total registration count |
+|| `/api/health` | GET | Health check |
+|| `/actuator/health` | GET | Spring Boot health |
+|| `/actuator/prometheus` | GET | Prometheus metrics |
 
 ## Configuration
 
 ### Queue Engine (environment variables)
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HTTP_PORT` | 8080 | HTTP listen port |
-| `REDIS_ADDR` | localhost:6379 | Redis address |
-| `ADMIT_RATE_PER_SEC` | 25 | Users admitted per second |
-| `MAX_CONCURRENT_ADMITTED` | 200 | Max active (admitted) sessions |
-| `ADMITTED_SESSION_TTL` | 300 | Seconds before an admitted session expires |
-| `WAITING_TTL` | 600 | Seconds before a waiting entry is evicted (no heartbeat) |
-| `JWT_SECRET` | dev-secret-change-me | Secret for signing/validating admit tokens |
-| `JWT_TTL` | 600 | Admit token validity (seconds) |
+|| Variable | Default | Description |
+||----------|---------|-------------|
+|| `HTTP_PORT` | 8080 | HTTP listen port |
+|| `REDIS_ADDR` | localhost:6379 | Redis address |
+|| `ADMIT_RATE_PER_SEC` | 25 | Users admitted per second |
+|| `MAX_CONCURRENT_ADMITTED` | 200 | Max active (admitted) sessions |
+|| `ADMITTED_SESSION_TTL` | 300 | Seconds before an admitted session expires |
+|| `WAITING_TTL` | 600 | Seconds before a waiting entry is evicted (no heartbeat) |
+|| `JWT_SECRET` | dev-secret-change-me | Secret for signing/validating admit tokens |
+|| `JWT_TTL` | 600 | Admit token validity (seconds) |
 
 ### Backend (environment variables)
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JWT_SECRET` | dev-secret-change-me | Must match queue engine |
-| `ENFORCE_QUEUE_TOKEN` | true | Set to false for "without queue" demo mode |
+|| Variable | Default | Description |
+||----------|---------|-------------|
+|| `JWT_SECRET` | dev-secret-change-me | Must match queue engine |
+|| `ENFORCE_QUEUE_TOKEN` | true | Set to false for "without queue" demo mode |
 
 ## Deployment to OCI (Oracle Cloud)
 
@@ -247,10 +254,10 @@ go run . --mode=without-queue --users=2000 --ramp=3s \
 ### Steps
 
 ```bash
-cd infra
+cd terraform
 
 # 1. Copy and fill in tfvars
-cp environments/dev/terraform.tfvars.example terraform.tfvars
+cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with your OCIDs
 
 # 2. Init
@@ -261,34 +268,9 @@ terraform plan
 
 # 4. Apply
 terraform apply
-
-# 5. Get kubeconfig
-oci ce cluster create-kubeconfig \
-  --cluster-id <cluster_ocid> \
-  --file ~/.kube/config \
-  --region ap-mumbai-1
-
-# 6. Install cert-manager
-helm install cert-manager jetstack/cert-manager \
-  -n cert-manager --create-namespace --set installCRDs=true
-
-# 7. Install External Secrets Operator
-helm install external-secrets external-secrets/external-secrets \
-  -n external-secrets --create-namespace
-
-# 8. Install monitoring stack
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-  -n surge-monitoring --create-namespace \
-  -f deploy/monitoring/values.yaml
-
-# 9. Deploy the application
-kubectl apply -k deploy/base/
-
-# 10. Check rollout
-kubectl -n surge-system rollout status deployment/queue-engine
-kubectl -n surge-system rollout status deployment/backend
 ```
+
+**Note:** The Oracle VM creation is not yet implemented due to free Arm capacity constraints. The Terraform currently provisions only the network infrastructure (VCN, subnets, gateways).
 
 ## Project Structure
 
@@ -317,34 +299,47 @@ surge-queue/
 ├── loadtest/              # Go load tester (with-queue vs without-queue)
 │   ├── main.go
 │   └── Dockerfile
-├── infra/                 # Terraform for OCI
-│   ├── modules/
-│   │   ├── vcn/            # VCN, subnets, gateways, security lists
-│   │   ├── oke/            # OKE cluster + node pool
-│   │   ├── redis/          # OCI Cache (managed Redis)
-│   │   └── ocr/            # OCI Container Registry repos
+├── terraform/             # Terraform for OCI network
 │   ├── main.tf
 │   ├── variables.tf
-│   ├── versions.tf
-│   └── environments/dev/
-├── deploy/                # Kubernetes manifests
+│   ├── network.tf
+│   └── compute.tf
+├── k8s/                   # Kubernetes manifests for k3d
+│   ├── namespace.yaml
+│   ├── redis.yaml
+│   ├── queue-engine.yaml
+│   ├── backend.yaml
+│   └── frontend.yaml
+├── deploy/                # Kubernetes manifests for production OCI
 │   ├── base/
 │   │   ├── namespace.yaml
 │   │   ├── secret-externalsecret.yaml
 │   │   ├── redis.yaml
-│   │   ├── queue-engine.yaml    # Deployment + Service + HPA
-│   │   ├── backend.yaml         # Deployment + Service + HPA
+│   │   ├── queue-engine.yaml
+│   │   ├── backend.yaml
 │   │   ├── networkpolicy.yaml
-│   │   ├── ingress.yaml         # TLS via cert-manager
+│   │   ├── ingress.yaml
 │   │   └── kustomization.yaml
 │   └── monitoring/
 │       ├── servicemonitors.yaml
-│       ├── values.yaml          # kube-prometheus-stack Helm values
+│       ├── values.yaml
 │       └── grafana-dashboard.yaml
+├── infra/                 # Terraform for OCI (legacy, not used)
+│   ├── modules/
+│   │   ├── vcn/
+│   │   ├── oke/
+│   │   ├── redis/
+│   │   └── ocr/
+│   ├── main.tf
+│   ├── variables.tf
+│   └── versions.tf
 ├── .github/workflows/
-│   └── ci-cd.yaml          # Build, push, terraform, deploy
+│   └── ci-cd.yaml          # Build and test with kind cluster
 ├── scripts/
-│   └── demo.sh             # One-command demo
+│   ├── demo.sh             # One-command demo
+│   ├── k3d-up.sh           # Deploy to k3d
+│   ├── k3d-down.sh         # Remove k3d cluster
+│   └── smoke-test.sh       # Automated smoke tests
 ├── docker-compose.yml      # Local dev environment
 └── README.md
 ```

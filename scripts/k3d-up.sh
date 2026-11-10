@@ -48,10 +48,7 @@ kubectl create secret generic jwt-secret -n surge-system --from-literal=JWT_SECR
 
 echo "=== Applying Kubernetes manifests ==="
 kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/redis.yaml
-kubectl apply -f k8s/queue-engine.yaml
-kubectl apply -f k8s/backend.yaml
-kubectl apply -f k8s/frontend.yaml
+kubectl apply -f k8s/
 
 echo "=== Waiting for deployments to be ready ==="
 kubectl wait --for=condition=available -n surge-system deployment/redis --timeout=60s

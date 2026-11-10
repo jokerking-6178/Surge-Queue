@@ -25,10 +25,10 @@ MAX_ATTEMPTS=30
 ATTEMPT=0
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ] && [ "$ADMITTED" = false ]; do
   STATUS_RESPONSE=$(curl -s "$BASE_URL/api/queue/status/$USER_ID")
-  STATE=$(echo "$STATUS_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('status', {}).get('state', ''))")
+  STATE=$(echo "$STATUS_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('state', ''))")
   if [ "$STATE" = "admitted" ]; then
     ADMITTED=true
-    ADMIT_TOKEN=$(echo "$STATUS_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('status', {}).get('admit_token', ''))")
+    ADMIT_TOKEN=$(echo "$STATUS_RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('admit_token', ''))")
   fi
   ATTEMPT=$((ATTEMPT + 1))
   sleep 2

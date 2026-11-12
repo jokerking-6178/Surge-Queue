@@ -6,6 +6,25 @@ FAILED=0
 
 echo "=== Smoke Test: $BASE_URL ==="
 
+# Check 0: Verify MIME types
+echo -n "Check 0: Verify app.js Content-Type... "
+JS_CT=$(curl -s -I "$BASE_URL/app.js" | grep -i "Content-Type:" | grep -i "javascript")
+if [ -n "$JS_CT" ]; then
+  echo "PASS"
+else
+  echo "FAIL (app.js not served as javascript)"
+  FAILED=1
+fi
+
+echo -n "Check 0: Verify style.css Content-Type... "
+CSS_CT=$(curl -s -I "$BASE_URL/style.css" | grep -i "Content-Type:" | grep -i "text/css")
+if [ -n "$CSS_CT" ]; then
+  echo "PASS"
+else
+  echo "FAIL (style.css not served as text/css)"
+  FAILED=1
+fi
+
 # Step 1: Join queue
 echo -n "Step 1: Join queue... "
 JOIN_RESPONSE=$(curl -s -X POST "$BASE_URL/api/queue/enter" -H "Content-Type: application/json" -d '{}')

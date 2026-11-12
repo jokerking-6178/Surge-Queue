@@ -9,6 +9,9 @@ data:
         worker_connections 1024;
     }
     http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
         server {
             listen 80;
             location / {

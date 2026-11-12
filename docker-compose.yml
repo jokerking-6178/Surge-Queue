@@ -54,7 +54,7 @@ services:
     ports:
       - "8082:8081"
     environment:
-      - JWT_SECRET=dev-secret-change-me
+      - JWT_SECRET=${JWT_SECRET}
       - ENFORCE_QUEUE_TOKEN=false
     restart: unless-stopped
     profiles:
